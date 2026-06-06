@@ -1,31 +1,47 @@
-import Database from 'better-sqlite3'
-import type { CompletedVisit } from '../types/index.js'
+import mongoose from 'mongoose'
 
-const db = new Database('visits.db')
+const MONGODB_URI = process.env.MONGODB_URI!
 
-db.exec(`
-  CREATE TABLE IF NOT EXISTS visits (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    dealer_name TEXT NOT NULL,
-    visit_type_name TEXT NOT NULL,
-    products TEXT NOT NULL,
-    notes TEXT DEFAULT '',
-    photo_file_id TEXT,
-    timestamp TEXT NOT NULL,
-    user_id INTEGER NOT NULL
-  )
-`)
+const visitSchema = new mongoose.Schema({
+  dealerName: { type: String, required: true },
+  visitTypeName: { type: String, required: true },
+  products: { type: String, required: true },
+  notes: { type: String, default: '' },
+  photoFileId: { type: String, default: null },
+  timestamp: { type: String, required: true },
+  userId: { type: Number, required: true },
+})
 
-const insertStmt = db.prepare(`
-  INSERT INTO visits (dealer_name, visit_type_name, products, notes, photo_file_id, timestamp, user_id)
-  VALUES (@dealerName, @visitTypeName, @products, @notes, @photoFileId, @timestamp, @userId)
-`)
+const sessionSchema = new mongoose.Schema({
+  key: { type: String, required: true, unique: true },
+  data: { type: mongoose.Schema.Types.Mixed, required: true },
+})
 
-export function saveVisit(visit: Omit<CompletedVisit, 'id'>): void {
-  insertStmt.run(visit)
+export const VisitModel = mongoose.models.Visit || mongoose.model('Visit', visitSchema)
+export const SessionModel = mongoose.models.Session || mongoose.model('Session', sessionSchema)
+
+const cached: { conn?: typeof mongoose } = {}
+
+export async function connectDB(): Promise<typeof mongoose> {
+  if (!MONGODB_URI) throw new Error('MONGODB_URI environment variable is required')
+  if (cached.conn) {
+    console.log('[db] using cached connection')
+    return cached.conn
+  }
+  console.log('[db] connecting...')
+  cached.conn = await mongoose.connect(MONGODB_URI, { serverSelectionTimeoutMS: 5000 })
+  console.log('[db] connected')
+  return cached.conn
 }
 
-export function getVisits(userId: number): CompletedVisit[] {
-  const rows = db.prepare('SELECT * FROM visits WHERE user_id = ? ORDER BY id DESC').all(userId) as CompletedVisit[]
-  return rows
+export async function saveVisit(data: {
+  dealerName: string
+  visitTypeName: string
+  products: string
+  notes: string
+  photoFileId: string | null
+  timestamp: string
+  userId: number
+}): Promise<void> {
+  await VisitModel.create(data)
 }

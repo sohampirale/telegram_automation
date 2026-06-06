@@ -12,15 +12,17 @@ interface WizardSession extends Scenes.WizardSessionData {
   selectedProductIds?: string[]
 }
 
+const CANCEL = Markup.button.callback('❌ Cancel', 'cancel_visit')
+
 function buildDealerKeyboard(matched: ReturnType<typeof searchDealers>): ReturnType<typeof Markup.inlineKeyboard> {
   const buttons = matched.slice(0, MAX_RESULTS).map((d) => Markup.button.callback(d.name, `dealer_${d.id}`))
-  return Markup.inlineKeyboard(buttons, { columns: 1 })
+  return Markup.inlineKeyboard([...buttons, CANCEL], { columns: 1 })
 }
 
 function buildVisitTypeKeyboard(): ReturnType<typeof Markup.inlineKeyboard> {
   const types = getVisitTypes()
   const buttons = types.map((t) => Markup.button.callback(t.name, `visittype_${t.id}`))
-  return Markup.inlineKeyboard(buttons, { columns: 1 })
+  return Markup.inlineKeyboard([...buttons, CANCEL], { columns: 1 })
 }
 
 function buildProductKeyboard(selectedIds: string[]): ReturnType<typeof Markup.inlineKeyboard> {
@@ -30,7 +32,7 @@ function buildProductKeyboard(selectedIds: string[]): ReturnType<typeof Markup.i
     return Markup.button.callback(`${checked}${p.name}`, `product_${p.id}`)
   })
   buttons.push(Markup.button.callback('✅ Done', 'product_done'))
-  return Markup.inlineKeyboard(buttons, { columns: 1 })
+  return Markup.inlineKeyboard([...buttons, CANCEL], { columns: 1 })
 }
 
 export const visitWizard = new Scenes.WizardScene<Scenes.WizardContext<WizardSession>>(
@@ -38,15 +40,22 @@ export const visitWizard = new Scenes.WizardScene<Scenes.WizardContext<WizardSes
 
   // Step 0: Dealer search prompt
   async (ctx) => {
+    console.log(`[scene] step 0: search prompt (user ${ctx.from?.id})`)
     await ctx.reply(
       '🔍 *Search for a dealer:*\n\nType part of the dealer name to find them.',
-      { parse_mode: 'Markdown' },
+      {
+        parse_mode: 'Markdown',
+        ...Markup.inlineKeyboard([CANCEL]),
+      },
     )
     ctx.wizard.next()
   },
 
   // Step 1: Dealer search & selection
   async (ctx) => {
+    const input = ctx.callbackQuery && 'data' in ctx.callbackQuery ? ctx.callbackQuery.data : 'text'
+    console.log(`[scene] step 1: user ${ctx.from?.id} input=${input}`)
+
     if (ctx.callbackQuery && 'data' in ctx.callbackQuery) {
       const data = ctx.callbackQuery.data
 
@@ -79,7 +88,9 @@ export const visitWizard = new Scenes.WizardScene<Scenes.WizardContext<WizardSes
       const matched = searchDealers(text)
 
       if (matched.length === 0) {
-        await ctx.reply('No dealers found matching that name. Try a different search.')
+        await ctx.reply('No dealers found matching that name. Try a different search.', {
+          ...Markup.inlineKeyboard([CANCEL]),
+        })
         return
       }
 
@@ -96,7 +107,9 @@ export const visitWizard = new Scenes.WizardScene<Scenes.WizardContext<WizardSes
       return
     }
 
-    await ctx.reply('Please type part of a dealer name to search.')
+    await ctx.reply('Please type part of a dealer name to search.', {
+      ...Markup.inlineKeyboard([CANCEL]),
+    })
   },
 
   // Step 2: Select visit type
@@ -166,7 +179,7 @@ export const visitWizard = new Scenes.WizardScene<Scenes.WizardContext<WizardSes
         `Products: *${productNames.join(', ')}*\n\nAdd any notes:`,
         {
           parse_mode: 'Markdown',
-          ...Markup.inlineKeyboard([Markup.button.callback('Skip notes', 'skip_notes')]),
+          ...Markup.inlineKeyboard([Markup.button.callback('Skip notes', 'skip_notes'), CANCEL]),
         },
       )
       ctx.wizard.next()
@@ -200,7 +213,7 @@ export const visitWizard = new Scenes.WizardScene<Scenes.WizardContext<WizardSes
       await ctx.editMessageReplyMarkup({ inline_keyboard: [] })
       await ctx.reply(
         'Thanks! Do you want to add a photo? (optional)\nSend a photo or click "Skip" to finish.',
-        Markup.inlineKeyboard([Markup.button.callback('Skip', 'skip_photo')]),
+        Markup.inlineKeyboard([Markup.button.callback('Skip', 'skip_photo'), CANCEL]),
       )
       ctx.wizard.next()
       return
@@ -208,7 +221,7 @@ export const visitWizard = new Scenes.WizardScene<Scenes.WizardContext<WizardSes
 
     if (!ctx.message || !('text' in ctx.message)) {
       await ctx.reply('Please send a text message for notes, or click "Skip notes".', {
-        ...Markup.inlineKeyboard([Markup.button.callback('Skip notes', 'skip_notes')]),
+        ...Markup.inlineKeyboard([Markup.button.callback('Skip notes', 'skip_notes'), CANCEL]),
       })
       return
     }
@@ -219,7 +232,7 @@ export const visitWizard = new Scenes.WizardScene<Scenes.WizardContext<WizardSes
 
     await ctx.reply(
       'Thanks! Do you want to add a photo? (optional)\nSend a photo or click "Skip" to finish.',
-      Markup.inlineKeyboard([Markup.button.callback('Skip', 'skip_photo')]),
+      Markup.inlineKeyboard([Markup.button.callback('Skip', 'skip_photo'), CANCEL]),
     )
     ctx.wizard.next()
   },
@@ -247,18 +260,22 @@ export const visitWizard = new Scenes.WizardScene<Scenes.WizardContext<WizardSes
       return ctx.scene.leave()
     }
 
-    await ctx.reply('Please send a photo or click "Skip".')
+    await ctx.reply('Please send a photo or click "Skip".', {
+      ...Markup.inlineKeyboard([Markup.button.callback('Skip', 'skip_photo'), CANCEL]),
+    })
   },
 )
 
 async function showSummary(ctx: Scenes.WizardContext<WizardSession>, state: WizardSession): Promise<void> {
   const visit = state.visit
   if (!visit) {
+    console.log('[scene] showSummary called with no visit data')
     await ctx.reply('Something went wrong. Please start again with /start.')
     return
   }
 
   const timestamp = new Date().toISOString()
+  console.log(`[scene] saving visit: ${visit.dealerName} / ${visit.visitTypeName}`)
 
   saveVisit({
     dealerName: visit.dealerName,

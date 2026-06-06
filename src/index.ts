@@ -1,11 +1,10 @@
 import 'dotenv/config'
-import bot from './bot/index.js'
+import { getBot } from './bot/index.js'
 
-const PORT = process.env.PORT ? parseInt(process.env.PORT) : undefined
+const bot = await getBot()
 
-bot.launch({ webhook: PORT ? { domain: process.env.WEBHOOK_DOMAIN || '', port: PORT } : undefined }).then(() => {
-  const mode = PORT ? `webhook on port ${PORT}` : 'polling'
-  console.log(`Bot running in ${mode} mode`)
+bot.launch().then(() => {
+  console.log('Bot running in polling mode')
 })
 
 process.once('SIGINT', () => bot.stop('SIGINT'))
