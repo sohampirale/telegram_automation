@@ -277,6 +277,9 @@ async function showSummary(ctx: Scenes.WizardContext<WizardSession>, state: Wiza
   const timestamp = new Date().toISOString()
   console.log(`[scene] saving visit: ${visit.dealerName} / ${visit.visitTypeName}`)
 
+  const from = ctx.from
+  const userName = from ? [from.first_name, from.last_name].filter(Boolean).join(' ') || from.username || String(from.id) : 'Unknown'
+
   saveVisit({
     dealerName: visit.dealerName,
     visitTypeName: visit.visitTypeName,
@@ -284,7 +287,8 @@ async function showSummary(ctx: Scenes.WizardContext<WizardSession>, state: Wiza
     notes: visit.notes || '',
     photoFileId: visit.photoFileId || null,
     timestamp,
-    userId: ctx.from?.id || 0,
+    userId: from?.id || 0,
+    userName,
   })
 
   let msg = `✅ *Visit Report Saved*\n\n`

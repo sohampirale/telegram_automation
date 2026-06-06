@@ -8,6 +8,7 @@ const visitSchema = new mongoose.Schema({
   photoFileId: { type: String, default: null },
   timestamp: { type: String, required: true },
   userId: { type: Number, required: true },
+  userName: { type: String, default: '' },
 })
 
 export const VisitModel = mongoose.models.Visit || mongoose.model('Visit', visitSchema)

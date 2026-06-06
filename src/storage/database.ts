@@ -10,6 +10,7 @@ const visitSchema = new mongoose.Schema({
   photoFileId: { type: String, default: null },
   timestamp: { type: String, required: true },
   userId: { type: Number, required: true },
+  userName: { type: String, default: '' },
 })
 
 const sessionSchema = new mongoose.Schema({
@@ -42,6 +43,7 @@ export async function saveVisit(data: {
   photoFileId: string | null
   timestamp: string
   userId: number
+  userName: string
 }): Promise<void> {
   await VisitModel.create(data)
 }

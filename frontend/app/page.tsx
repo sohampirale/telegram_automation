@@ -9,6 +9,7 @@ interface Visit {
   products: string
   notes: string
   timestamp: string
+  userName: string
 }
 
 export default function Home() {
@@ -51,6 +52,7 @@ export default function Home() {
             <table className="w-full text-left text-sm">
               <thead>
                 <tr className="border-b bg-zinc-50 text-xs font-semibold uppercase text-zinc-500">
+                  <th className="px-4 py-3">Reported By</th>
                   <th className="px-4 py-3">Dealer</th>
                   <th className="px-4 py-3">Visit Type</th>
                   <th className="px-4 py-3">Products</th>
@@ -61,6 +63,7 @@ export default function Home() {
               <tbody className="divide-y">
                 {visits.map((v) => (
                   <tr key={v._id} className="hover:bg-zinc-50">
+                    <td className="px-4 py-3 text-zinc-700">{v.userName || 'Unknown'}</td>
                     <td className="px-4 py-3 font-medium text-zinc-900">{v.dealerName}</td>
                     <td className="px-4 py-3 text-zinc-600">
                       <span className="inline-block rounded-full bg-blue-100 px-2.5 py-0.5 text-xs font-medium text-blue-700">
